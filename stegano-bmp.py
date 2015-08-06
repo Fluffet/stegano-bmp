@@ -1,5 +1,6 @@
 import argparse
 import struct
+import sys
 from collections import namedtuple
 
 class BMPException(Exception):
@@ -28,6 +29,9 @@ BMP_Headerstruct = namedtuple("BMP_Headerstruct", "type size junk offset")
 dibheader_fmt = "<3I2H6I"
 BMP_DIBHeader    = namedtuple("BMP_DIBHeader", 
 	"headersize imgwidth imgheight colorplanes depth compression raw_datasize dpih dpiv palettecolors importantcolors")
+
+# parse command line
+
 
 def mask_24bit(message, image_content):
 	padding_counter = 0
@@ -108,8 +112,17 @@ if(args.action == "mask" or args.action == "unmask"):
 			
 			image_content = bytedata[bitmap_header.offset:]
 
-			if( args.action =="mask" and args.destination and args.message ):			
-				message = bytes(args.message + "|",encoding="utf-8")
+			if( args.action =="mask" and args.destination and args.message):
+
+				try:
+					f = open(args.message)
+					message = f.read()
+					f.close()
+					print("Message found in file " + args.message)
+				except FileNotFoundError:
+					message = args.message
+
+				message = bytes(message + "|", encoding="ascii")
 
 				if len(message*8) > bitmap_dibheader.imgheight * bitmap_dibheader.imgwidth:
 					raise BMPException("The message/file is too large to fit inside this bitmap file")
@@ -128,5 +141,5 @@ if(args.action == "mask" or args.action == "unmask"):
 							destination.write(unmasked_message+"\n")
 							print("Masked message written to " + args.destination)
 					else:
-						print("\n###No destination file, so using stdout. Message is: \n")
+						print("\n# No destination file, so using stdout. Message is: \n")
 						print(unmasked_message)
