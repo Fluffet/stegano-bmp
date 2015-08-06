@@ -28,30 +28,69 @@ def encode_24bit(message, image_content):
 
 	offset = 0
 
-	#while(offset <= len(message*8)):
-
 	for character in message:
 
 		character_bits = "{0:08b}".format(character)
 		bit_no = 0
 
-		while(bit_no <= 8):
+		while(bit_no <= 7):
 			color_value = image_content[offset]
-			offset+=1
-			bit_no+=1
+			
 
+			if (color_value%2) !=  ord(character_bits[bit_no]) & 0x1:
+				#print(color_value, end = "\t")
+				color_value = color_value ^ 0x1
+				#print(color_value)
+
+			image_content[offset] = color_value
+
+			bit_no+=1
+			offset+=1
 			padding_counter +=1
 			if padding_counter % 3 ==0:
 				padding_counter=0
 				offset+=2
+
+	return image_content
+
+def decode_24bit(bitmap_header, image_content):
+	
+	decoded_message = ""
+
+	offset=0
+	padding_counter=0
+	
+	while offset < len(image_content):
+
+		bitstring = ""
+		bit_no = 0
+
+		while(bit_no <= 7):
+			color_value = image_content[offset]
+			offset+=1
+			bitstring += str(color_value & 0x1)
+		
+			if padding_counter % 3 ==0:
+				padding_counter=0
+		decoded_message += bitstring
+	return bitstring
+
+
+
+def reconstruct_file(bytedata,image_content):
+	global args
+
+
+	with open("result.bmp","wb") as destfile:
+		destfile.write(bytedata[0:54] + image_content)
 
 with open(args.sourcefile, 'rb') as bmp_file:
 	bytedata = bytearray(bmp_file.read())
 
 	bitmap_header = BMP_Headerstruct._make(struct.unpack(header_fmt, bytedata[0:14]))
 
-	#if chr(bitmap_header.type) not in ["BM", "BA", "CI", "CP", "IC", "PT"]:
-	#	raise BMPException("This is not a BMP file.")
+	#if bytearray(bitmap_header.type).encode("utf-8") not in ["BM", "BA", "CI", "CP", "IC", "PT"]:
+	#	raise BMPException("This is not a BMP file. :(")
 
 	bitmap_dibheader = BMP_DIBHeader._make(struct.unpack(dibheader_fmt, bytedata[14:54]))
 
@@ -60,12 +99,13 @@ with open(args.sourcefile, 'rb') as bmp_file:
 	
 	image_content = bytedata[bitmap_header.offset:]
 
-
-	#message = "This message is completely hidden in the image"
 	message = bytes(args.message + "|",encoding="utf-8")
 
 	if len(message*8) > bitmap_dibheader.imgheight * bitmap_dibheader.imgwidth:
 		raise BMPException("The message is too large to fit inside this bitmap file")
 
 	if bitmap_dibheader.depth == 24:
-		encode_24bit(message,image_content)
+		image_content = encode_24bit(message,image_content)
+		reconstruct_file(bytedata,image_content)
+
+#decoded_message()
