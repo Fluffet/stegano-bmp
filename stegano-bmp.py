@@ -118,13 +118,14 @@ if(args.action == "mask" or args.action == "unmask"):
 					f = open(args.message)
 					message = f.read()
 					f.close()
+					message+= "|"
+					message=message.encode("ascii","ignore")
 					print("Message found in file " + args.message)
 				except FileNotFoundError:
 					message = args.message
+					message = bytes(message + "|", encoding="ascii")
 
-				message = bytes(message + "|", encoding="ascii")
-
-				if len(message*8) > bitmap_dibheader.imgheight * bitmap_dibheader.imgwidth:
+				if len(message) > 3/32 * bitmap_dibheader.raw_datasize:
 					raise BMPException("The message/file is too large to fit inside this bitmap file")
 
 				if bitmap_dibheader.depth == 24:
