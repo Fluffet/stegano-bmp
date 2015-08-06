@@ -17,12 +17,33 @@ parser.add_argument("message")
 args = parser.parse_args()
 
 header_fmt    = "<HIII"
-
 BMP_Headerstruct = namedtuple("BMP_Headerstruct", "type size junk offset")
-
 dibheader_fmt = "<3I2H6I"
 BMP_DIBHeader    = namedtuple("BMP_DIBHeader", 
 	"headersize imgwidth imgheight colorplanes depth compression raw_datasize dpih dpiv palettecolors importantcolors")
+
+def encode_24bit(message, image_content):
+	add_padding = False
+
+	offset = 0
+
+	for character in message:
+		
+		character_bits = "{0:08b}".format(character)
+		bits_added=0
+
+		bit_no = 0
+		while(bits_added <=8):
+			#print("a")
+			#r, g, b = image_content[offset:offset+3]
+			offset+=3
+			
+			#bit_no+1
+			bits_added+=1
+
+			if add_padding: offset+=2
+			add_padding = not add_padding #Toggle bool
+	pass
 
 with open(args.sourcefile, 'rb') as bmp_file:
 	bytedata = bytearray(bmp_file.read())
@@ -41,34 +62,10 @@ with open(args.sourcefile, 'rb') as bmp_file:
 
 
 	#message = "This message is completely hidden in the image"
-	message = bytes(args.message,encoding="utf-8")
+	message = bytes(args.message + "|",encoding="utf-8")
 
 	if len(message*8) > bitmap_dibheader.imgheight * bitmap_dibheader.imgwidth:
 		raise BMPException("The message is too large to fit inside this bitmap file")
 
-
 	if bitmap_dibheader.depth == 24:
-		offset = 0
-		add_padding = False
-
-		while offset <= bitmap_dibheader.raw_datasize/2+2:
-			r = image_content[offset : offset+1]
-			offset+=1
-			g = image_content[offset : offset+1]
-			offset+=1
-			b = image_content[offset : offset+1]
-			offset+=1
-			print("R G B = " + hex(r[0]) + " " + hex(g[0]) + " " + hex(b[0]) + " Added padding: " + str(add_padding) + " Offset: " + str(offset))
-			
-			if add_padding: offset+=2
-			add_padding = not add_padding #Toggle bool
-
-
-
-
-"""
-from PIL import Image
-bmp_img = Image.open(args.sourcefile)
-
-assert(bmp_img.format == "BMP")
-"""
+		encode_24bit(message,image_content)
