@@ -23,27 +23,27 @@ BMP_DIBHeader    = namedtuple("BMP_DIBHeader",
 	"headersize imgwidth imgheight colorplanes depth compression raw_datasize dpih dpiv palettecolors importantcolors")
 
 def encode_24bit(message, image_content):
+	padding_counter = 0
 	add_padding = False
 
 	offset = 0
 
+	#while(offset <= len(message*8)):
+
 	for character in message:
-		
+
 		character_bits = "{0:08b}".format(character)
-		bits_added=0
-
 		bit_no = 0
-		while(bits_added <=8):
-			#print("a")
-			#r, g, b = image_content[offset:offset+3]
-			offset+=3
-			
-			#bit_no+1
-			bits_added+=1
 
-			if add_padding: offset+=2
-			add_padding = not add_padding #Toggle bool
-	pass
+		while(bit_no <= 8):
+			color_value = image_content[offset]
+			offset+=1
+			bit_no+=1
+
+			padding_counter +=1
+			if padding_counter % 3 ==0:
+				padding_counter=0
+				offset+=2
 
 with open(args.sourcefile, 'rb') as bmp_file:
 	bytedata = bytearray(bmp_file.read())
