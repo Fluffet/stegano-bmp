@@ -25,7 +25,6 @@ BMP_DIBHeader    = namedtuple("BMP_DIBHeader",
 def encode_24bit(message, image_content):
 	padding_counter = 0
 	add_padding = False
-
 	offset = 0
 
 	for character in message:
@@ -36,51 +35,55 @@ def encode_24bit(message, image_content):
 		while(bit_no <= 7):
 			color_value = image_content[offset]
 			
-
 			if (color_value%2) !=  ord(character_bits[bit_no]) & 0x1:
-				#print(color_value, end = "\t")
 				color_value = color_value ^ 0x1
-				#print(color_value)
 
 			image_content[offset] = color_value
-
 			bit_no+=1
 			offset+=1
 			padding_counter +=1
+
 			if padding_counter % 3 ==0:
 				padding_counter=0
 				offset+=2
 
+
 	return image_content
 
-def decode_24bit(bitmap_header, image_content):
-	
+def decode_24bit_file(image_content):
 	decoded_message = ""
-
 	offset=0
 	padding_counter=0
-	
-	while offset < len(image_content):
 
+	while offset < len(image_content)+20:
 		bitstring = ""
 		bit_no = 0
 
 		while(bit_no <= 7):
 			color_value = image_content[offset]
+			
 			offset+=1
 			bitstring += str(color_value & 0x1)
-		
+			bit_no +=1
+			
+			padding_counter+=1
 			if padding_counter % 3 ==0:
+				offset+=2
 				padding_counter=0
-		decoded_message += bitstring
-	return bitstring
+
+		decoded_character = chr(int(bitstring,2))
+		if decoded_character == "|":
+			print(decoded_character)
+			break
+
+		decoded_message += decoded_character
+
+	print(decoded_message)
 
 
 
 def reconstruct_file(bytedata,image_content):
 	global args
-
-
 	with open("result.bmp","wb") as destfile:
 		destfile.write(bytedata[0:54] + image_content)
 
@@ -99,7 +102,7 @@ with open(args.sourcefile, 'rb') as bmp_file:
 	
 	image_content = bytedata[bitmap_header.offset:]
 
-	message = bytes(args.message + "|",encoding="utf-8")
+	message = bytes(args.message + "|",encoding="ascii")
 
 	if len(message*8) > bitmap_dibheader.imgheight * bitmap_dibheader.imgwidth:
 		raise BMPException("The message is too large to fit inside this bitmap file")
@@ -108,4 +111,6 @@ with open(args.sourcefile, 'rb') as bmp_file:
 		image_content = encode_24bit(message,image_content)
 		reconstruct_file(bytedata,image_content)
 
-#decoded_message()
+with open("result.bmp",'rb') as f:
+	bytedata = bytearray(f.read())
+	decode_24bit_file(bytedata[54:])
