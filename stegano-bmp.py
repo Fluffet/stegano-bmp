@@ -30,22 +30,22 @@ dibheader_fmt = "<3I2H6I"
 BMP_DIBHeader    = namedtuple("BMP_DIBHeader", 
 	"headersize imgwidth imgheight colorplanes depth compression raw_datasize dpih dpiv palettecolors importantcolors")
 
-# parse command line
+GHETTO_EOF = "|ghetto-eof|" # The odds of random bytes aligning to this is almost nonexistant
 
 
 def mask_24bit(message, image_content):
 	padding_counter = 0
 	offset = 0
 
-	for character in message:
+	for byte in message:
 
-		character_bits = "{0:08b}".format(character)
+		character_bits = "{0:08b}".format(byte)
 		bit_no = 0
 
 		while(bit_no <= 7):
 			color_value = image_content[offset]
 			
-			if (color_value%2) !=  ord(character_bits[bit_no]) & 0x1:
+			if (color_value%2) !=  int(character_bits[bit_no],2) & 0x1:
 				color_value = color_value ^ 0x1
 
 			image_content[offset] = color_value
@@ -60,19 +60,19 @@ def mask_24bit(message, image_content):
 	return image_content
 
 def unmask_24bit_file(image_content):
-	masked_message = ""
+	masked_bytes = bytearray()
 	offset=0
 	padding_counter=0
 
 	while offset < len(image_content):
-		bitstring = ""
+		masked_bitstring = ""
 		bit_no = 0
 
 		while(bit_no <= 7):
 			color_value = image_content[offset]
 			
 			offset+=1
-			bitstring += str(color_value & 0x1)
+			masked_bitstring += str(color_value & 0x1)
 			bit_no +=1
 
 			padding_counter+=1
@@ -80,13 +80,13 @@ def unmask_24bit_file(image_content):
 				offset+=2
 				padding_counter=0
 
-		masked_character = chr(int(bitstring,2))
-		if masked_character == "|":
-			break
+		masked_byte = int(masked_bitstring,2)
 
-		masked_message += masked_character
+		masked_bytes.append( masked_byte )
 
-	return masked_message
+		if masked_bytes[-len(GHETTO_EOF):] == bytearray(GHETTO_EOF, encoding="utf-8"):
+			return masked_bytes[:-len(GHETTO_EOF)]
+		
 
 def reconstruct_file(bytedata,modified_image_content):
 	with open(args.destination,"wb") as destfile:
@@ -95,7 +95,7 @@ def reconstruct_file(bytedata,modified_image_content):
 
 
 
-
+# Main program #
 
 if(args.action == "mask" or args.action == "unmask"):
 
@@ -115,15 +115,13 @@ if(args.action == "mask" or args.action == "unmask"):
 			if( args.action =="mask" and args.destination and args.message):
 
 				try:
-					f = open(args.message)
-					message = f.read()
+					f = open(args.message,"rb")
+					message = bytearray(f.read() + bytes(GHETTO_EOF, encoding="utf-8"))
 					f.close()
-					message+= "|"
-					message=message.encode("ascii","ignore")
-					print("Message found in file " + args.message)
+					print("Message found in " + args.message + " Size = " + str(len(bytedata)))
 				except FileNotFoundError:
 					message = args.message
-					message = bytes(message + "|", encoding="ascii")
+					message = bytes(message + GHETTO_EOF, encoding="utf-8")
 
 				if len(message) > 3/32 * bitmap_dibheader.raw_datasize:
 					raise BMPException("The message/file is too large to fit inside this bitmap file")
@@ -137,10 +135,14 @@ if(args.action == "mask" or args.action == "unmask"):
 				with open(args.sourcebmp,'rb') as source:
 					bytedata = bytearray(source.read())
 					unmasked_message = unmask_24bit_file(bytedata[bitmap_header.offset :])
-					if(args.destination):
-						with open(args.destination,'w') as destination:
-							destination.write(unmasked_message+"\n")
-							print("Masked message written to " + args.destination)
-					else:
-						print("\n# No destination file, so using stdout. Message is: \n")
-						print(unmasked_message)
+					
+					if args.destination and unmasked_message:
+						print("# Found content.")
+						with open(args.destination,'wb') as destination:
+							destination.write(bytearray(unmasked_message))
+							print("# Masked content written to " + args.destination)
+					elif unmasked_message:
+						print("# Found content")
+						print("# Encoding to UTF-8.. (if you don't wan't encoding just specify a file)")
+							#Masked content, UTF-8 encoded: \n""")
+						print(unmasked_message.decode("utf-8"))
