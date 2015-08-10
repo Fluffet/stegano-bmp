@@ -118,7 +118,7 @@ if(args.action == "mask" or args.action == "unmask"):
 					f = open(args.message,"rb")
 					message = bytearray(f.read() + bytes(GHETTO_EOF, encoding="utf-8"))
 					f.close()
-					print("Message found in " + args.message + " Size = " + str(len(bytedata)))
+					print("Message found in: " + args.message + ". Size in bytes (with masked EOF) = " + str(len(message)))
 				except FileNotFoundError:
 					message = args.message
 					message = bytes(message + GHETTO_EOF, encoding="utf-8")
