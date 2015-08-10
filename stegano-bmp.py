@@ -30,8 +30,7 @@ dibheader_fmt = "<3I2H6I"
 BMP_DIBHeader    = namedtuple("BMP_DIBHeader", 
 	"headersize imgwidth imgheight colorplanes depth compression raw_datasize dpih dpiv palettecolors importantcolors")
 
-GHETTO_EOF = "|ghetto-eof|" # The odds of random bytes aligning to this is almost nonexistant
-
+GHETTO_EOF = "|eof|" # The odds of random bytes aligning to this is almost nonexistant
 
 def mask_24bit(message, image_content):
 	padding_counter = 0
@@ -43,6 +42,7 @@ def mask_24bit(message, image_content):
 		bit_no = 0
 
 		while(bit_no <= 7):
+
 			color_value = image_content[offset]
 			
 			if (color_value%2) !=  int(character_bits[bit_no],2) & 0x1:
@@ -68,7 +68,9 @@ def unmask_24bit_file(image_content):
 		masked_bitstring = ""
 		bit_no = 0
 
+
 		while(bit_no <= 7):
+
 			color_value = image_content[offset]
 			
 			offset+=1
@@ -91,7 +93,7 @@ def unmask_24bit_file(image_content):
 def reconstruct_file(bytedata,modified_image_content):
 	with open(args.destination,"wb") as destfile:
 		destfile.write(bytedata[0:54] + modified_image_content)
-		print("Wrote to " + args.destination)
+		print("# Wrote to " + args.destination)
 
 
 
@@ -118,13 +120,17 @@ if(args.action == "mask" or args.action == "unmask"):
 					f = open(args.message,"rb")
 					message = bytearray(f.read() + bytes(GHETTO_EOF, encoding="utf-8"))
 					f.close()
-					print("Message found in: " + args.message + ". Size in bytes (with masked EOF) = " + str(len(message)))
+					print("# Message found in: " + args.message + ". Size in bytes (with masked EOF) = " + str(len(message)))
 				except FileNotFoundError:
 					message = args.message
 					message = bytes(message + GHETTO_EOF, encoding="utf-8")
 
+				print(len(message))
+				print(3/32 * bitmap_dibheader.raw_datasize)
+
 				if len(message) > 3/32 * bitmap_dibheader.raw_datasize:
 					raise BMPException("The message/file is too large to fit inside this bitmap file")
+
 
 				if bitmap_dibheader.depth == 24:
 					image_content = mask_24bit(message,image_content)
@@ -146,3 +152,5 @@ if(args.action == "mask" or args.action == "unmask"):
 						print("# Encoding to UTF-8.. (if you don't wan't encoding just specify a file)")
 							#Masked content, UTF-8 encoded: \n""")
 						print(unmasked_message.decode("utf-8"))
+					else:
+						print("# ERROR: No content detected in this file")
